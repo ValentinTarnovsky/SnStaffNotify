@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import com.sn.staffnotify.command.StaffNotifyCommand;
 import com.sn.staffnotify.config.ConfigManager;
 import com.sn.staffnotify.config.MessagesManager;
+import com.sn.staffnotify.database.StaffDatabase;
 import com.sn.staffnotify.listener.ConnectionListener;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.event.Subscribe;
@@ -27,6 +28,7 @@ public final class SnStaffNotify {
 
     private ConfigManager config;
     private MessagesManager messages;
+    private StaffDatabase staffDb;
 
     @Inject
     public SnStaffNotify(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
@@ -45,8 +47,15 @@ public final class SnStaffNotify {
         this.messages = new MessagesManager(logger, dataDirectory);
         messages.load();
 
+        // Connect to database
+        this.staffDb = new StaffDatabase(logger, config);
+        if (!staffDb.connect()) {
+            logger.error("Failed to connect to SnStaffLink database. Staff notifications will not work!");
+            logger.error("Check your database settings in config.yml.");
+        }
+
         // Register listener
-        proxy.getEventManager().register(this, new ConnectionListener(proxy, logger, config, messages));
+        proxy.getEventManager().register(this, new ConnectionListener(proxy, logger, config, messages, staffDb));
 
         // Register command
         CommandManager cmdMgr = proxy.getCommandManager();
@@ -60,15 +69,27 @@ public final class SnStaffNotify {
 
     @Subscribe
     public void onShutdown(ProxyShutdownEvent event) {
+        if (staffDb != null) {
+            staffDb.close();
+        }
         logger.info("SnStaffNotify disabled.");
     }
 
     /**
-     * Reloads config and messages.
+     * Reloads config, messages, and reconnects the database.
      * Called by the reload command.
      */
     public void reload() {
         config.reload();
         messages.reload();
+
+        // Reconnect database with potentially new settings
+        if (staffDb != null) {
+            staffDb.close();
+        }
+        this.staffDb = new StaffDatabase(logger, config);
+        if (!staffDb.connect()) {
+            logger.error("Failed to reconnect to database after reload.");
+        }
     }
 }

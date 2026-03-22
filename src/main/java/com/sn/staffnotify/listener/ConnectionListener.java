@@ -2,6 +2,7 @@ package com.sn.staffnotify.listener;
 
 import com.sn.staffnotify.config.ConfigManager;
 import com.sn.staffnotify.config.MessagesManager;
+import com.sn.staffnotify.database.StaffDatabase;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
@@ -18,6 +19,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Listens to Velocity connection events and broadcasts staff join, leave,
  * and server-switch notifications to all online staff members.
+ * <p>
+ * Staff detection is done via SnStaffLink's MySQL database instead of
+ * permission checks, since LuckPerms on Velocity is independent from backends.
  */
 public final class ConnectionListener {
 
@@ -25,13 +29,16 @@ public final class ConnectionListener {
     private final Logger logger;
     private final ConfigManager config;
     private final MessagesManager messages;
+    private final StaffDatabase staffDb;
     private final Set<UUID> knownStaff = ConcurrentHashMap.newKeySet();
 
-    public ConnectionListener(ProxyServer proxy, Logger logger, ConfigManager config, MessagesManager messages) {
+    public ConnectionListener(ProxyServer proxy, Logger logger, ConfigManager config,
+                              MessagesManager messages, StaffDatabase staffDb) {
         this.proxy = proxy;
         this.logger = logger;
         this.config = config;
         this.messages = messages;
+        this.staffDb = staffDb;
     }
 
     /**
@@ -47,8 +54,8 @@ public final class ConnectionListener {
         // Skip ignored players
         if (config.isIgnored(player.getUniqueId(), player.getUsername())) return;
 
-        // Skip non-staff
-        if (!player.hasPermission(config.getStaffPermission())) return;
+        // Skip non-staff (checked against SnStaffLink database)
+        if (!staffDb.isStaff(player.getUniqueId())) return;
 
         if (event.getPreviousServer().isEmpty()) {
             // INITIAL JOIN - player just connected to the network
@@ -86,18 +93,18 @@ public final class ConnectionListener {
     }
 
     /**
-     * Broadcasts a formatted message to all online players who have the staff permission.
+     * Broadcasts a formatted message to all online staff members.
      *
      * @param messageKey   the dot-path key in messages.yml
      * @param placeholders placeholder values to inject into the message
-     * @param excludeUuid  UUID to exclude from the broadcast (e.g. the disconnecting player), or null
+     * @param excludeUuid  UUID to exclude from the broadcast, or null
      */
     private void broadcast(String messageKey, Map<String, String> placeholders, UUID excludeUuid) {
         Component message = messages.getMessage(messageKey, placeholders);
 
         for (Player p : proxy.getAllPlayers()) {
             if (excludeUuid != null && p.getUniqueId().equals(excludeUuid)) continue;
-            if (p.hasPermission(config.getStaffPermission())) {
+            if (staffDb.isStaff(p.getUniqueId())) {
                 p.sendMessage(message);
             }
         }

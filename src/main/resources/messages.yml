@@ -33,6 +33,7 @@ messages:
 # ============================================================
 reload-success: "{prefix}&#55FF55Configuration reloaded."
 no-permission: "{prefix}&#FF5555You don't have permission."
+database-error: "{prefix}&#FF5555Failed to connect to database. Check config."
 
 # ============================================================
 #                    HELP MESSAGES

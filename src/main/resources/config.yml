@@ -5,19 +5,30 @@
 # ============================================================
 
 # Config version - DO NOT MODIFY
-config-version: 1
+config-version: 2
 
 # Enable debug logging
 debug: false
 
 # ============================================================
+#                       DATABASE
+# ============================================================
+# MySQL connection to SnStaffLink's database.
+# Players in the staff table are considered staff members.
+database:
+  host: "localhost"
+  port: 3306
+  database: "minecraft"
+  username: "root"
+  password: ""
+  # Table name where staff members are stored
+  table: "stafflink_users"
+  # How often to refresh the staff cache (seconds)
+  cache-seconds: 60
+
+# ============================================================
 #                      PERMISSIONS
 # ============================================================
-# Permission required to:
-#   1. Trigger notifications (only players with this perm generate join/switch/leave)
-#   2. Receive notifications (only players with this perm see the messages)
-staff-permission: "nookure.staff.staffchat"
-
 # Permission for the /staffnotify command
 command-permission: "snstaffnotify.admin"
 

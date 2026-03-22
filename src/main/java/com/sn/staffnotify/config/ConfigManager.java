@@ -17,17 +17,25 @@ import java.util.*;
 public final class ConfigManager {
 
     private static final String FILE_NAME = "config.yml";
-    private static final int CURRENT_CONFIG_VERSION = 1;
+    private static final int CURRENT_CONFIG_VERSION = 2;
 
     private final Logger logger;
     private final Path dataDir;
     private final Path configPath;
 
     private volatile boolean debug;
-    private volatile String staffPermission;
     private volatile String commandPermission;
     private volatile Set<String> ignoredUuids;
     private volatile Set<String> ignoredNames;
+
+    // Database settings
+    private volatile String dbHost;
+    private volatile int dbPort;
+    private volatile String dbDatabase;
+    private volatile String dbUsername;
+    private volatile String dbPassword;
+    private volatile String dbTable;
+    private volatile int cacheSeconds;
 
     public ConfigManager(Logger logger, Path dataDir) {
         this.logger = logger;
@@ -71,57 +79,82 @@ public final class ConfigManager {
     private void parseValues(Map<String, Object> config) {
         this.debug = Boolean.TRUE.equals(config.get("debug"));
 
-        Object staffPermObj = config.get("staff-permission");
-        this.staffPermission = staffPermObj != null ? staffPermObj.toString() : "nookure.staff.staffchat";
-
         Object cmdPermObj = config.get("command-permission");
         this.commandPermission = cmdPermObj != null ? cmdPermObj.toString() : "snstaffnotify.admin";
+
+        // Parse database section
+        Object dbObj = config.get("database");
+        if (dbObj instanceof Map<?, ?> dbMap) {
+            this.dbHost = getStringOrDefault(dbMap, "host", "localhost");
+            this.dbPort = getIntOrDefault(dbMap, "port", 3306);
+            this.dbDatabase = getStringOrDefault(dbMap, "database", "minecraft");
+            this.dbUsername = getStringOrDefault(dbMap, "username", "root");
+            this.dbPassword = getStringOrDefault(dbMap, "password", "");
+            this.dbTable = getStringOrDefault(dbMap, "table", "stafflink_users");
+            this.cacheSeconds = getIntOrDefault(dbMap, "cache-seconds", 60);
+        } else {
+            applyDatabaseDefaults();
+        }
 
         // Parse ignored-players section
         Object ignoredObj = config.get("ignored-players");
         if (ignoredObj instanceof Map<?, ?> ignoredMap) {
-            Object uuidsObj = ignoredMap.get("uuids");
-            if (uuidsObj instanceof List<?> list) {
-                Set<String> uuids = new HashSet<>();
-                for (Object o : list) {
-                    if (o != null) {
-                        uuids.add(o.toString().toLowerCase(Locale.ROOT));
-                    }
-                }
-                this.ignoredUuids = Collections.unmodifiableSet(uuids);
-            } else {
-                this.ignoredUuids = Set.of();
-            }
-
-            Object namesObj = ignoredMap.get("names");
-            if (namesObj instanceof List<?> list) {
-                Set<String> names = new HashSet<>();
-                for (Object o : list) {
-                    if (o != null) {
-                        names.add(o.toString().toLowerCase(Locale.ROOT));
-                    }
-                }
-                this.ignoredNames = Collections.unmodifiableSet(names);
-            } else {
-                this.ignoredNames = Set.of();
-            }
+            this.ignoredUuids = parseStringSet(ignoredMap.get("uuids"));
+            this.ignoredNames = parseStringSet(ignoredMap.get("names"));
         } else {
             this.ignoredUuids = Set.of();
             this.ignoredNames = Set.of();
         }
 
         if (debug) {
-            logger.info("[DEBUG] Loaded config: staffPermission={}, commandPermission={}, ignoredUuids={}, ignoredNames={}",
-                    staffPermission, commandPermission, ignoredUuids.size(), ignoredNames.size());
+            logger.info("[DEBUG] Loaded config: db={}:{}/{}, table={}, cache={}s, ignoredUuids={}, ignoredNames={}",
+                    dbHost, dbPort, dbDatabase, dbTable, cacheSeconds,
+                    ignoredUuids.size(), ignoredNames.size());
         }
+    }
+
+    private Set<String> parseStringSet(Object listObj) {
+        if (!(listObj instanceof List<?> list)) return Set.of();
+        Set<String> result = new HashSet<>();
+        for (Object o : list) {
+            if (o != null) {
+                result.add(o.toString().toLowerCase(Locale.ROOT));
+            }
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
+    private String getStringOrDefault(Map<?, ?> map, String key, String defaultValue) {
+        Object val = map.get(key);
+        return val != null ? val.toString() : defaultValue;
+    }
+
+    private int getIntOrDefault(Map<?, ?> map, String key, int defaultValue) {
+        Object val = map.get(key);
+        if (val instanceof Number n) return n.intValue();
+        if (val != null) {
+            try { return Integer.parseInt(val.toString()); }
+            catch (NumberFormatException e) { /* fall through */ }
+        }
+        return defaultValue;
     }
 
     private void applyDefaults() {
         this.debug = false;
-        this.staffPermission = "nookure.staff.staffchat";
         this.commandPermission = "snstaffnotify.admin";
         this.ignoredUuids = Set.of();
         this.ignoredNames = Set.of();
+        applyDatabaseDefaults();
+    }
+
+    private void applyDatabaseDefaults() {
+        this.dbHost = "localhost";
+        this.dbPort = 3306;
+        this.dbDatabase = "minecraft";
+        this.dbUsername = "root";
+        this.dbPassword = "";
+        this.dbTable = "stafflink_users";
+        this.cacheSeconds = 60;
     }
 
     private void checkConfigVersion(Map<String, Object> config) throws IOException {
@@ -158,19 +191,12 @@ public final class ConfigManager {
 
     /**
      * Checks whether the given player is ignored by UUID or name.
-     *
-     * @param uuid the player's UUID
-     * @param name the player's name
-     * @return true if the player is in either ignore list
      */
     public boolean isIgnored(UUID uuid, String name) {
         if (uuid != null && ignoredUuids.contains(uuid.toString().toLowerCase(Locale.ROOT))) {
             return true;
         }
-        if (name != null && ignoredNames.contains(name.toLowerCase(Locale.ROOT))) {
-            return true;
-        }
-        return false;
+        return name != null && ignoredNames.contains(name.toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -183,8 +209,15 @@ public final class ConfigManager {
     }
 
     public boolean isDebug() { return debug; }
-    public String getStaffPermission() { return staffPermission; }
     public String getCommandPermission() { return commandPermission; }
     public Set<String> getIgnoredUuids() { return ignoredUuids; }
     public Set<String> getIgnoredNames() { return ignoredNames; }
+
+    public String getDbHost() { return dbHost; }
+    public int getDbPort() { return dbPort; }
+    public String getDbDatabase() { return dbDatabase; }
+    public String getDbUsername() { return dbUsername; }
+    public String getDbPassword() { return dbPassword; }
+    public String getDbTable() { return dbTable; }
+    public int getCacheSeconds() { return cacheSeconds; }
 }
