@@ -49,6 +49,7 @@ public final class StaffDatabase {
             hikari.setConnectionTimeout(5000);
             hikari.setIdleTimeout(300000);
             hikari.setMaxLifetime(600000);
+            hikari.setDriverClassName("com.mysql.cj.jdbc.Driver");
             hikari.setPoolName("SnStaffNotify-Pool");
 
             this.dataSource = new HikariDataSource(hikari);
