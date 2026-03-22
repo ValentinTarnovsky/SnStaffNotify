@@ -54,8 +54,8 @@ public final class ConnectionListener {
         // Skip ignored players
         if (config.isIgnored(player.getUniqueId(), player.getUsername())) return;
 
-        // Skip non-staff (checked against SnStaffLink database)
-        if (!staffDb.isStaff(player.getUniqueId())) return;
+        // Skip non-staff (DB check + full perms / OP on proxy)
+        if (!isStaff(player)) return;
 
         if (event.getPreviousServer().isEmpty()) {
             // INITIAL JOIN - player just connected to the network
@@ -99,12 +99,20 @@ public final class ConnectionListener {
      * @param placeholders placeholder values to inject into the message
      * @param excludeUuid  UUID to exclude from the broadcast, or null
      */
+    /**
+     * Checks if a player is staff: either in SnStaffLink's database
+     * or has full permissions (*) / OP on the proxy.
+     */
+    private boolean isStaff(Player player) {
+        return staffDb.isStaff(player.getUniqueId()) || player.hasPermission("*");
+    }
+
     private void broadcast(String messageKey, Map<String, String> placeholders, UUID excludeUuid) {
         Component message = messages.getMessage(messageKey, placeholders);
 
         for (Player p : proxy.getAllPlayers()) {
             if (excludeUuid != null && p.getUniqueId().equals(excludeUuid)) continue;
-            if (staffDb.isStaff(p.getUniqueId())) {
+            if (isStaff(p)) {
                 p.sendMessage(message);
             }
         }
