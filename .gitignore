@@ -1,0 +1,11 @@
+target/
+*.class
+*.jar
+*.log
+.idea/
+*.iml
+*.iws
+*.ipr
+.DS_Store
+CLAUDE.md
+.claude/

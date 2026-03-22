@@ -1,0 +1,31 @@
+# ============================================================
+#                      SnStaffNotify
+#                   Configuration File
+#                  Version: ${project.version}
+# ============================================================
+
+# Config version - DO NOT MODIFY
+config-version: 1
+
+# Enable debug logging
+debug: false
+
+# ============================================================
+#                      PERMISSIONS
+# ============================================================
+# Permission required to:
+#   1. Trigger notifications (only players with this perm generate join/switch/leave)
+#   2. Receive notifications (only players with this perm see the messages)
+staff-permission: "nookure.staff.staffchat"
+
+# Permission for the /staffnotify command
+command-permission: "snstaffnotify.admin"
+
+# ============================================================
+#                     IGNORED PLAYERS
+# ============================================================
+# Players in this list will NOT generate notifications.
+# Useful for bots, alt accounts, etc.
+ignored-players:
+  uuids: []
+  names: []

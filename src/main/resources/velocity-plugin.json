@@ -1,0 +1,9 @@
+{
+  "id": "snstaffnotify",
+  "name": "SnStaffNotify",
+  "version": "${project.version}",
+  "description": "Staff connection notifications for NookureStaff's staff chat audience",
+  "main": "com.sn.staffnotify.SnStaffNotify",
+  "authors": ["Snopeyy"],
+  "dependencies": []
+}

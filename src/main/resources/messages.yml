@@ -1,0 +1,44 @@
+# ============================================================
+#                      SnStaffNotify
+#                     Messages File
+#                  Version: 1.0.0
+# ============================================================
+# Supports HEX colors: &#RRGGBB
+# Supports legacy color codes: &0-&f, &l, &m, &n, &o, &r
+# ============================================================
+
+# Config version - DO NOT MODIFY
+config-version: 1
+
+# ============================================================
+#                         PREFIX
+# ============================================================
+# Prefix prepended to all messages containing {prefix}
+prefix: "&#7C3AED[Staff] &#FFFFFF"
+
+# ============================================================
+#                  NOTIFICATION MESSAGES
+# ============================================================
+# Placeholders: {player}, {server}, {previous_server}
+messages:
+  # When a staff member connects to the network
+  join: "{prefix}&a+ &f{player} &7joined &b{server}"
+  # When a staff member switches between servers
+  switch: "{prefix}&e\u2192 &f{player} &7moved to &b{server}"
+  # When a staff member disconnects from the network
+  leave: "{prefix}&c- &f{player} &7left the network"
+
+# ============================================================
+#                   COMMAND MESSAGES
+# ============================================================
+reload-success: "{prefix}&#55FF55Configuration reloaded."
+no-permission: "{prefix}&#FF5555You don't have permission."
+
+# ============================================================
+#                    HELP MESSAGES
+# ============================================================
+help:
+  header: "&#FFD700=== SnStaffNotify Help ==="
+  reload: "  &#55FF55/staffnotify reload &#AAAAAA- Reload configuration"
+  help-line: "  &#55FF55/staffnotify help &#AAAAAA- Show this help message"
+  footer: "&#FFD700========================="
