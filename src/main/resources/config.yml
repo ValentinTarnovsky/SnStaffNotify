@@ -5,7 +5,7 @@
 # ============================================================
 
 # Config version - DO NOT MODIFY
-config-version: 2
+config-version: 3
 
 # Enable debug logging
 debug: false
@@ -40,3 +40,30 @@ command-permission: "snstaffnotify.admin"
 ignored-players:
   uuids: []
   names: []
+
+# ============================================================
+#                    DISCORD WEBHOOKS
+# ============================================================
+# Discord webhook integration for HelpOp and Report commands.
+# Create a webhook in your Discord channel and paste the URL below.
+webhooks:
+  helpop:
+    # Enable or disable the HelpOp Discord webhook
+    enabled: false
+    # Discord webhook URL for HelpOp notifications
+    url: ""
+  report:
+    # Enable or disable the Report Discord webhook
+    enabled: false
+    # Discord webhook URL for Report notifications
+    url: ""
+
+# ============================================================
+#                       COOLDOWNS
+# ============================================================
+# Cooldown in seconds for player commands. Set to 0 to disable.
+cooldowns:
+  # Cooldown for /helpop command (seconds)
+  helpop: 30
+  # Cooldown for /report command (seconds)
+  report: 60

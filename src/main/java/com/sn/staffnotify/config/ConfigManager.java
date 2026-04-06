@@ -17,7 +17,7 @@ import java.util.*;
 public final class ConfigManager {
 
     private static final String FILE_NAME = "config.yml";
-    private static final int CURRENT_CONFIG_VERSION = 2;
+    private static final int CURRENT_CONFIG_VERSION = 3;
 
     private final Logger logger;
     private final Path dataDir;
@@ -36,6 +36,16 @@ public final class ConfigManager {
     private volatile String dbPassword;
     private volatile String dbTable;
     private volatile int cacheSeconds;
+
+    // Webhook settings
+    private volatile boolean webhookHelpopEnabled;
+    private volatile String webhookHelpopUrl;
+    private volatile boolean webhookReportEnabled;
+    private volatile String webhookReportUrl;
+
+    // Cooldown settings (seconds)
+    private volatile int cooldownHelpop;
+    private volatile int cooldownReport;
 
     public ConfigManager(Logger logger, Path dataDir) {
         this.logger = logger;
@@ -106,10 +116,43 @@ public final class ConfigManager {
             this.ignoredNames = Set.of();
         }
 
+        // Parse webhooks section
+        Object webhooksObj = config.get("webhooks");
+        if (webhooksObj instanceof Map<?, ?> webhooksMap) {
+            Object helpopObj = webhooksMap.get("helpop");
+            if (helpopObj instanceof Map<?, ?> helpopMap) {
+                this.webhookHelpopEnabled = Boolean.TRUE.equals(helpopMap.get("enabled"));
+                this.webhookHelpopUrl = getStringOrDefault(helpopMap, "url", "");
+            } else {
+                applyWebhookDefaults();
+            }
+            Object reportObj = webhooksMap.get("report");
+            if (reportObj instanceof Map<?, ?> reportMap) {
+                this.webhookReportEnabled = Boolean.TRUE.equals(reportMap.get("enabled"));
+                this.webhookReportUrl = getStringOrDefault(reportMap, "url", "");
+            } else {
+                applyWebhookDefaults();
+            }
+        } else {
+            applyWebhookDefaults();
+        }
+
+        // Parse cooldowns section
+        Object cooldownsObj = config.get("cooldowns");
+        if (cooldownsObj instanceof Map<?, ?> cooldownsMap) {
+            this.cooldownHelpop = getIntOrDefault(cooldownsMap, "helpop", 30);
+            this.cooldownReport = getIntOrDefault(cooldownsMap, "report", 60);
+        } else {
+            this.cooldownHelpop = 30;
+            this.cooldownReport = 60;
+        }
+
         if (debug) {
             logger.info("[DEBUG] Loaded config: db={}:{}/{}, table={}, cache={}s, ignoredUuids={}, ignoredNames={}",
                     dbHost, dbPort, dbDatabase, dbTable, cacheSeconds,
                     ignoredUuids.size(), ignoredNames.size());
+            logger.info("[DEBUG] Webhooks: helpop={}, report={}", webhookHelpopEnabled, webhookReportEnabled);
+            logger.info("[DEBUG] Cooldowns: helpop={}s, report={}s", cooldownHelpop, cooldownReport);
         }
     }
 
@@ -145,6 +188,9 @@ public final class ConfigManager {
         this.ignoredUuids = Set.of();
         this.ignoredNames = Set.of();
         applyDatabaseDefaults();
+        applyWebhookDefaults();
+        this.cooldownHelpop = 30;
+        this.cooldownReport = 60;
     }
 
     private void applyDatabaseDefaults() {
@@ -155,6 +201,13 @@ public final class ConfigManager {
         this.dbPassword = "";
         this.dbTable = "stafflink_users";
         this.cacheSeconds = 60;
+    }
+
+    private void applyWebhookDefaults() {
+        this.webhookHelpopEnabled = false;
+        this.webhookHelpopUrl = "";
+        this.webhookReportEnabled = false;
+        this.webhookReportUrl = "";
     }
 
     private void checkConfigVersion(Map<String, Object> config) throws IOException {
@@ -220,4 +273,12 @@ public final class ConfigManager {
     public String getDbPassword() { return dbPassword; }
     public String getDbTable() { return dbTable; }
     public int getCacheSeconds() { return cacheSeconds; }
+
+    public boolean isWebhookHelpopEnabled() { return webhookHelpopEnabled; }
+    public String getWebhookHelpopUrl() { return webhookHelpopUrl; }
+    public boolean isWebhookReportEnabled() { return webhookReportEnabled; }
+    public String getWebhookReportUrl() { return webhookReportUrl; }
+
+    public int getCooldownHelpop() { return cooldownHelpop; }
+    public int getCooldownReport() { return cooldownReport; }
 }

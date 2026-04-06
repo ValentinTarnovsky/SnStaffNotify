@@ -1,11 +1,14 @@
 package com.sn.staffnotify;
 
 import com.google.inject.Inject;
+import com.sn.staffnotify.command.HelpOpCommand;
+import com.sn.staffnotify.command.ReportCommand;
 import com.sn.staffnotify.command.StaffNotifyCommand;
 import com.sn.staffnotify.config.ConfigManager;
 import com.sn.staffnotify.config.MessagesManager;
 import com.sn.staffnotify.database.StaffDatabase;
 import com.sn.staffnotify.listener.ConnectionListener;
+import com.sn.staffnotify.webhook.WebhookManager;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
@@ -29,6 +32,7 @@ public final class SnStaffNotify {
     private ConfigManager config;
     private MessagesManager messages;
     private StaffDatabase staffDb;
+    private WebhookManager webhookManager;
 
     @Inject
     public SnStaffNotify(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
@@ -54,14 +58,25 @@ public final class SnStaffNotify {
             logger.error("Check your database settings in config.yml.");
         }
 
+        // Create webhook manager
+        this.webhookManager = new WebhookManager(logger, config);
+
         // Register listener
         proxy.getEventManager().register(this, new ConnectionListener(proxy, logger, config, messages, staffDb));
 
-        // Register command
+        // Register commands
         CommandManager cmdMgr = proxy.getCommandManager();
         cmdMgr.register(
                 cmdMgr.metaBuilder("staffnotify").aliases("snotify").build(),
                 new StaffNotifyCommand(this, config, messages)
+        );
+        cmdMgr.register(
+                cmdMgr.metaBuilder("helpop").build(),
+                new HelpOpCommand(proxy, config, messages, staffDb, webhookManager)
+        );
+        cmdMgr.register(
+                cmdMgr.metaBuilder("report").build(),
+                new ReportCommand(proxy, config, messages, staffDb, webhookManager)
         );
 
         logger.info("SnStaffNotify enabled.");
@@ -69,6 +84,9 @@ public final class SnStaffNotify {
 
     @Subscribe
     public void onShutdown(ProxyShutdownEvent event) {
+        if (webhookManager != null) {
+            webhookManager.close();
+        }
         if (staffDb != null) {
             staffDb.close();
         }

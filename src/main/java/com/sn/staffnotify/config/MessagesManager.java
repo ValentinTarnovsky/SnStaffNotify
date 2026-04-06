@@ -20,7 +20,7 @@ import java.util.Map;
 public final class MessagesManager {
 
     private static final String FILE_NAME = "messages.yml";
-    private static final int CURRENT_CONFIG_VERSION = 1;
+    private static final int CURRENT_CONFIG_VERSION = 2;
 
     private final Logger logger;
     private final Path dataDir;

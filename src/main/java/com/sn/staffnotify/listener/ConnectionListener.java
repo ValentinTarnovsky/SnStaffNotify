@@ -3,6 +3,7 @@ package com.sn.staffnotify.listener;
 import com.sn.staffnotify.config.ConfigManager;
 import com.sn.staffnotify.config.MessagesManager;
 import com.sn.staffnotify.database.StaffDatabase;
+import com.sn.staffnotify.util.StaffUtil;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
@@ -93,28 +94,21 @@ public final class ConnectionListener {
     }
 
     /**
+     * Checks if a player is staff using the shared utility.
+     */
+    private boolean isStaff(Player player) {
+        return StaffUtil.isStaff(player, staffDb);
+    }
+
+    /**
      * Broadcasts a formatted message to all online staff members.
      *
      * @param messageKey   the dot-path key in messages.yml
      * @param placeholders placeholder values to inject into the message
      * @param excludeUuid  UUID to exclude from the broadcast, or null
      */
-    /**
-     * Checks if a player is staff: either in SnStaffLink's database
-     * or has full permissions (*) / OP on the proxy.
-     */
-    private boolean isStaff(Player player) {
-        return staffDb.isStaff(player.getUniqueId()) || player.hasPermission("*");
-    }
-
     private void broadcast(String messageKey, Map<String, String> placeholders, UUID excludeUuid) {
         Component message = messages.getMessage(messageKey, placeholders);
-
-        for (Player p : proxy.getAllPlayers()) {
-            if (excludeUuid != null && p.getUniqueId().equals(excludeUuid)) continue;
-            if (isStaff(p)) {
-                p.sendMessage(message);
-            }
-        }
+        StaffUtil.broadcastToStaff(proxy, staffDb, message, excludeUuid);
     }
 }

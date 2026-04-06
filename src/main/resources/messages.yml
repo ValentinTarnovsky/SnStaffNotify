@@ -1,14 +1,14 @@
 # ============================================================
 #                      SnStaffNotify
 #                     Messages File
-#                  Version: 1.0.0
+#                  Version: 1.2.0
 # ============================================================
 # Supports HEX colors: &#RRGGBB
 # Supports legacy color codes: &0-&f, &l, &m, &n, &o, &r
 # ============================================================
 
 # Config version - DO NOT MODIFY
-config-version: 1
+config-version: 2
 
 # ============================================================
 #                         PREFIX
@@ -24,7 +24,7 @@ messages:
   # When a staff member connects to the network
   join: "{prefix}&a+ &f{player} &7joined &b{server}"
   # When a staff member switches between servers
-  switch: "{prefix}&e\u2192 &f{player} &7moved to &b{server}"
+  switch: "{prefix}&e→ &f{player} &7moved to &b{server}"
   # When a staff member disconnects from the network
   leave: "{prefix}&c- &f{player} &7left the network"
 
@@ -43,3 +43,39 @@ help:
   reload: "  &#55FF55/staffnotify reload &#AAAAAA- Reload configuration"
   help-line: "  &#55FF55/staffnotify help &#AAAAAA- Show this help message"
   footer: "&#FFD700========================="
+
+# ============================================================
+#                   HELPOP MESSAGES
+# ============================================================
+# Placeholders: {player}, {server}, {message}
+helpop:
+  # Message broadcast to all online staff members
+  broadcast: "{prefix}&#FFA500[HelpOp] &f{player} &7(&b{server}&7): &f{message}"
+  # Confirmation sent to the player who used /helpop
+  sent: "{prefix}&#55FF55Your help request has been sent to staff."
+  # Shown when the player is on cooldown
+  cooldown: "{prefix}&#FF5555Please wait before sending another help request."
+  # Shown when no message is provided
+  usage: "{prefix}&#FF5555Usage: /helpop <message>"
+  # Shown when the player is not connected to a server
+  no-server: "{prefix}&#FF5555You must be connected to a server."
+  # Shown when console tries to use the command
+  players-only: "{prefix}&#FF5555Only players can use this command."
+
+# ============================================================
+#                   REPORT MESSAGES
+# ============================================================
+# Placeholders: {player}, {target}, {server}, {reason}
+report:
+  # Message broadcast to all online staff members
+  broadcast: "{prefix}&#FF4444[Report] &f{player} &7reported &c{target} &7on &b{server}&7: &f{reason}"
+  # Confirmation sent to the player who used /report
+  sent: "{prefix}&#55FF55Your report has been sent to staff."
+  # Shown when the player is on cooldown
+  cooldown: "{prefix}&#FF5555Please wait before sending another report."
+  # Shown when arguments are missing
+  usage: "{prefix}&#FF5555Usage: /report <player> <reason>"
+  # Shown when the player is not connected to a server
+  no-server: "{prefix}&#FF5555You must be connected to a server."
+  # Shown when console tries to use the command
+  players-only: "{prefix}&#FF5555Only players can use this command."
