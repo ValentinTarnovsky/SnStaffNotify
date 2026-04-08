@@ -76,7 +76,7 @@ public final class ReportCommand implements SimpleCommand {
         StaffUtil.broadcastToStaff(proxy, staffDb, broadcast, null);
 
         // Send Discord webhook
-        webhookManager.sendReport(player.getUsername(), serverName, targetName, reason);
+        webhookManager.sendReport(player.getUsername(), player.getUniqueId(), serverName, targetName, reason);
 
         // Confirm to sender
         player.sendMessage(messages.getMessage("report.sent"));

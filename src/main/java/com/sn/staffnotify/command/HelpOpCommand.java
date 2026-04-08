@@ -75,7 +75,7 @@ public final class HelpOpCommand implements SimpleCommand {
         StaffUtil.broadcastToStaff(proxy, staffDb, broadcast, null);
 
         // Send Discord webhook
-        webhookManager.sendHelpOp(player.getUsername(), serverName, helpMessage);
+        webhookManager.sendHelpOp(player.getUsername(), player.getUniqueId(), serverName, helpMessage);
 
         // Confirm to sender (only if they're not staff, to avoid duplicate)
         if (!StaffUtil.isStaff(player, staffDb)) {

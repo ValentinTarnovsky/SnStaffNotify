@@ -1,5 +1,6 @@
 package com.sn.staffnotify.config;
 
+import com.sn.staffnotify.webhook.WebhookTemplate;
 import org.slf4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 
@@ -17,7 +18,7 @@ import java.util.*;
 public final class ConfigManager {
 
     private static final String FILE_NAME = "config.yml";
-    private static final int CURRENT_CONFIG_VERSION = 3;
+    private static final int CURRENT_CONFIG_VERSION = 4;
 
     private final Logger logger;
     private final Path dataDir;
@@ -37,11 +38,9 @@ public final class ConfigManager {
     private volatile String dbTable;
     private volatile int cacheSeconds;
 
-    // Webhook settings
-    private volatile boolean webhookHelpopEnabled;
-    private volatile String webhookHelpopUrl;
-    private volatile boolean webhookReportEnabled;
-    private volatile String webhookReportUrl;
+    // Webhook templates (fully customizable)
+    private volatile WebhookTemplate helpopWebhook;
+    private volatile WebhookTemplate reportWebhook;
 
     // Cooldown settings (seconds)
     private volatile int cooldownHelpop;
@@ -119,20 +118,8 @@ public final class ConfigManager {
         // Parse webhooks section
         Object webhooksObj = config.get("webhooks");
         if (webhooksObj instanceof Map<?, ?> webhooksMap) {
-            Object helpopObj = webhooksMap.get("helpop");
-            if (helpopObj instanceof Map<?, ?> helpopMap) {
-                this.webhookHelpopEnabled = Boolean.TRUE.equals(helpopMap.get("enabled"));
-                this.webhookHelpopUrl = getStringOrDefault(helpopMap, "url", "");
-            } else {
-                applyWebhookDefaults();
-            }
-            Object reportObj = webhooksMap.get("report");
-            if (reportObj instanceof Map<?, ?> reportMap) {
-                this.webhookReportEnabled = Boolean.TRUE.equals(reportMap.get("enabled"));
-                this.webhookReportUrl = getStringOrDefault(reportMap, "url", "");
-            } else {
-                applyWebhookDefaults();
-            }
+            this.helpopWebhook = parseWebhook(webhooksMap.get("helpop"), 0xFFA500);
+            this.reportWebhook = parseWebhook(webhooksMap.get("report"), 0xFF4444);
         } else {
             applyWebhookDefaults();
         }
@@ -151,9 +138,132 @@ public final class ConfigManager {
             logger.info("[DEBUG] Loaded config: db={}:{}/{}, table={}, cache={}s, ignoredUuids={}, ignoredNames={}",
                     dbHost, dbPort, dbDatabase, dbTable, cacheSeconds,
                     ignoredUuids.size(), ignoredNames.size());
-            logger.info("[DEBUG] Webhooks: helpop={}, report={}", webhookHelpopEnabled, webhookReportEnabled);
+            logger.info("[DEBUG] Webhooks: helpop={}, report={}",
+                    helpopWebhook.enabled(), reportWebhook.enabled());
             logger.info("[DEBUG] Cooldowns: helpop={}s, report={}s", cooldownHelpop, cooldownReport);
         }
+    }
+
+    /**
+     * Parses a single webhook section into an immutable {@link WebhookTemplate}.
+     * Missing fields fall back to safe defaults so partial configs don't break.
+     */
+    private WebhookTemplate parseWebhook(Object webhookObj, int defaultColor) {
+        if (!(webhookObj instanceof Map<?, ?> map)) {
+            return emptyWebhook(defaultColor);
+        }
+
+        boolean enabled = Boolean.TRUE.equals(map.get("enabled"));
+        String url = getStringOrDefault(map, "url", "");
+        String webhookUsername = getStringOrDefault(map, "webhook-username", "");
+        String webhookAvatar = getStringOrDefault(map, "webhook-avatar", "");
+        String content = getStringOrDefault(map, "content", "");
+
+        WebhookTemplate.EmbedTemplate embed = parseEmbed(map.get("embed"), defaultColor);
+        return new WebhookTemplate(enabled, url, webhookUsername, webhookAvatar, content, embed);
+    }
+
+    @SuppressWarnings("unchecked")
+    private WebhookTemplate.EmbedTemplate parseEmbed(Object embedObj, int defaultColor) {
+        if (!(embedObj instanceof Map<?, ?> map)) {
+            return emptyEmbed(defaultColor);
+        }
+
+        boolean enabled = !Boolean.FALSE.equals(map.get("enabled"));
+        String title = getStringOrDefault(map, "title", "");
+        String titleUrl = getStringOrDefault(map, "title-url", "");
+        String description = getStringOrDefault(map, "description", "");
+        int color = parseColor(map.get("color"), defaultColor);
+
+        // Author subsection
+        WebhookTemplate.AuthorTemplate author;
+        Object authorObj = map.get("author");
+        if (authorObj instanceof Map<?, ?> authorMap) {
+            author = new WebhookTemplate.AuthorTemplate(
+                    getStringOrDefault(authorMap, "name", ""),
+                    getStringOrDefault(authorMap, "icon-url", ""),
+                    getStringOrDefault(authorMap, "url", "")
+            );
+        } else {
+            author = new WebhookTemplate.AuthorTemplate("", "", "");
+        }
+
+        String thumbnailUrl = getStringOrDefault(map, "thumbnail-url", "");
+        String imageUrl = getStringOrDefault(map, "image-url", "");
+
+        // Footer subsection
+        WebhookTemplate.FooterTemplate footer;
+        Object footerObj = map.get("footer");
+        if (footerObj instanceof Map<?, ?> footerMap) {
+            footer = new WebhookTemplate.FooterTemplate(
+                    getStringOrDefault(footerMap, "text", ""),
+                    getStringOrDefault(footerMap, "icon-url", "")
+            );
+        } else {
+            footer = new WebhookTemplate.FooterTemplate("", "");
+        }
+
+        boolean timestamp = Boolean.TRUE.equals(map.get("timestamp"));
+
+        // Fields list — arbitrary length, order preserved
+        List<WebhookTemplate.FieldTemplate> fields = new ArrayList<>();
+        Object fieldsObj = map.get("fields");
+        if (fieldsObj instanceof List<?> fieldsList) {
+            for (Object entry : fieldsList) {
+                if (entry instanceof Map<?, ?> fieldMap) {
+                    fields.add(new WebhookTemplate.FieldTemplate(
+                            getStringOrDefault(fieldMap, "name", ""),
+                            getStringOrDefault(fieldMap, "value", ""),
+                            !Boolean.FALSE.equals(fieldMap.get("inline"))
+                    ));
+                }
+            }
+        }
+
+        return new WebhookTemplate.EmbedTemplate(
+                enabled, title, titleUrl, description, color,
+                author, thumbnailUrl, imageUrl, footer, timestamp,
+                Collections.unmodifiableList(fields)
+        );
+    }
+
+    /**
+     * Parses a color value supporting "#RRGGBB", "0xRRGGBB", or raw integers.
+     */
+    private int parseColor(Object raw, int fallback) {
+        if (raw == null) return fallback;
+        if (raw instanceof Number n) return n.intValue();
+
+        String s = raw.toString().trim();
+        if (s.isEmpty()) return fallback;
+
+        try {
+            if (s.startsWith("#")) {
+                return Integer.parseInt(s.substring(1), 16);
+            }
+            if (s.startsWith("0x") || s.startsWith("0X")) {
+                return Integer.parseInt(s.substring(2), 16);
+            }
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            logger.warn("Invalid embed color '{}', using default.", s);
+            return fallback;
+        }
+    }
+
+    private WebhookTemplate emptyWebhook(int defaultColor) {
+        return new WebhookTemplate(false, "", "", "", "", emptyEmbed(defaultColor));
+    }
+
+    private WebhookTemplate.EmbedTemplate emptyEmbed(int defaultColor) {
+        return new WebhookTemplate.EmbedTemplate(
+                true, "", "", "", defaultColor,
+                new WebhookTemplate.AuthorTemplate("", "", ""),
+                "", "",
+                new WebhookTemplate.FooterTemplate("", ""),
+                false,
+                List.of()
+        );
     }
 
     private Set<String> parseStringSet(Object listObj) {
@@ -204,10 +314,8 @@ public final class ConfigManager {
     }
 
     private void applyWebhookDefaults() {
-        this.webhookHelpopEnabled = false;
-        this.webhookHelpopUrl = "";
-        this.webhookReportEnabled = false;
-        this.webhookReportUrl = "";
+        this.helpopWebhook = emptyWebhook(0xFFA500);
+        this.reportWebhook = emptyWebhook(0xFF4444);
     }
 
     private void checkConfigVersion(Map<String, Object> config) throws IOException {
@@ -274,10 +382,8 @@ public final class ConfigManager {
     public String getDbTable() { return dbTable; }
     public int getCacheSeconds() { return cacheSeconds; }
 
-    public boolean isWebhookHelpopEnabled() { return webhookHelpopEnabled; }
-    public String getWebhookHelpopUrl() { return webhookHelpopUrl; }
-    public boolean isWebhookReportEnabled() { return webhookReportEnabled; }
-    public String getWebhookReportUrl() { return webhookReportUrl; }
+    public WebhookTemplate getHelpopWebhook() { return helpopWebhook; }
+    public WebhookTemplate getReportWebhook() { return reportWebhook; }
 
     public int getCooldownHelpop() { return cooldownHelpop; }
     public int getCooldownReport() { return cooldownReport; }

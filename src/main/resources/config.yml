@@ -5,7 +5,7 @@
 # ============================================================
 
 # Config version - DO NOT MODIFY
-config-version: 3
+config-version: 4
 
 # Enable debug logging
 debug: false
@@ -44,19 +44,121 @@ ignored-players:
 # ============================================================
 #                    DISCORD WEBHOOKS
 # ============================================================
-# Discord webhook integration for HelpOp and Report commands.
-# Create a webhook in your Discord channel and paste the URL below.
+# Fully customizable Discord webhooks for HelpOp and Report commands.
+#
+# AVAILABLE PLACEHOLDERS:
+#   Common:       {username}  {uuid}  {server}  {timestamp}
+#   HelpOp only:  {message}
+#   Report only:  {target}  {reason}
+#
+#   Skin placeholders (served by mc-heads.net — supports custom skins from
+#   SkinRestorer, Mojang, and offline-mode UUIDs by username):
+#     {skin_face}   Flat 2D face avatar         (best for author / footer icon)
+#     {skin_head}   3D isometric head render    (best for thumbnail)
+#     {skin_body}   Full 3D body render         (best for image)
+#
+# Every string below supports placeholders. Leave a field empty ("") to hide
+# that section of the embed. Add or remove fields freely under "fields:".
 webhooks:
   helpop:
     # Enable or disable the HelpOp Discord webhook
     enabled: false
     # Discord webhook URL for HelpOp notifications
     url: ""
+    # Bot username shown in Discord
+    webhook-username: "{username} - HelpOp"
+    # Bot avatar URL shown in Discord
+    webhook-avatar: "{skin_face}"
+    # Plain text content shown above the embed (leave empty for none)
+    content: ""
+    embed:
+      # Master switch — set false to send only plain content without an embed
+      enabled: true
+      # Title shown at the top of the embed (empty to hide)
+      title: "{username} - HelpOp"
+      # URL the title links to (empty to disable)
+      title-url: ""
+      # Description — main body of the embed (empty to hide)
+      description: "**{username}** needs help on **{server}**"
+      # Embed color: "#RRGGBB" or "0xRRGGBB"
+      color: "#FFA500"
+      # Author bar at the very top of the embed (empty name to hide)
+      author:
+        name: "{username}"
+        icon-url: "{skin_face}"
+        url: ""
+      # Small image in the top-right corner (empty to hide)
+      thumbnail-url: "{skin_head}"
+      # Large image at the bottom of the embed (empty to hide)
+      image-url: ""
+      # Footer bar at the bottom of the embed (empty text to hide)
+      footer:
+        text: "SnStaffNotify"
+        icon-url: ""
+      # Append Discord's automatic timestamp at the bottom of the embed
+      timestamp: true
+      # Custom fields — add, remove, and reorder freely
+      fields:
+        - name: "Player"
+          value: "{username}"
+          inline: true
+        - name: "Server"
+          value: "{server}"
+          inline: true
+        - name: "Message"
+          value: "{message}"
+          inline: false
   report:
     # Enable or disable the Report Discord webhook
     enabled: false
     # Discord webhook URL for Report notifications
     url: ""
+    # Bot username shown in Discord
+    webhook-username: "{username} - Report"
+    # Bot avatar URL shown in Discord
+    webhook-avatar: "{skin_face}"
+    # Plain text content shown above the embed (leave empty for none)
+    content: ""
+    embed:
+      # Master switch — set false to send only plain content without an embed
+      enabled: true
+      # Title shown at the top of the embed (empty to hide)
+      title: "{username} - Report"
+      # URL the title links to (empty to disable)
+      title-url: ""
+      # Description — main body of the embed (empty to hide)
+      description: "**{username}** reported **{target}** on **{server}**"
+      # Embed color: "#RRGGBB" or "0xRRGGBB"
+      color: "#FF4444"
+      # Author bar at the very top of the embed (empty name to hide)
+      author:
+        name: "{username}"
+        icon-url: "{skin_face}"
+        url: ""
+      # Small image in the top-right corner (empty to hide)
+      thumbnail-url: "{skin_head}"
+      # Large image at the bottom of the embed (empty to hide)
+      image-url: ""
+      # Footer bar at the bottom of the embed (empty text to hide)
+      footer:
+        text: "SnStaffNotify"
+        icon-url: ""
+      # Append Discord's automatic timestamp at the bottom of the embed
+      timestamp: true
+      # Custom fields — add, remove, and reorder freely
+      fields:
+        - name: "Reporter"
+          value: "{username}"
+          inline: true
+        - name: "Reported"
+          value: "{target}"
+          inline: true
+        - name: "Server"
+          value: "{server}"
+          inline: true
+        - name: "Reason"
+          value: "{reason}"
+          inline: false
 
 # ============================================================
 #                       COOLDOWNS
