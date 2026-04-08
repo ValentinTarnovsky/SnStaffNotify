@@ -5,7 +5,7 @@
 # ============================================================
 
 # Config version - DO NOT MODIFY
-config-version: 4
+config-version: 5
 
 # Enable debug logging
 debug: false
@@ -159,6 +159,38 @@ webhooks:
         - name: "Reason"
           value: "{reason}"
           inline: false
+    # --------------------------------------------------------
+    # Repeated-report alert
+    # --------------------------------------------------------
+    # When the same player gets reported multiple times within a short window,
+    # post an extra message to the same webhook pinging a Discord role so staff
+    # can act immediately.
+    #
+    # Placeholders for "message":
+    #   {role}       Role mention (<@&ID>) — expands to nothing if role-id is empty
+    #   {target}     Name of the reported player
+    #   {username}   Name of the reporter who tripped the threshold
+    #   {server}     Server the last report came from
+    #   {reason}     Reason of the last report
+    #   {count}      Current number of reports within the window
+    #   {threshold}  Configured threshold
+    #   {window}     Configured window in minutes
+    alert:
+      # Enable the multi-report alert
+      enabled: false
+      # Reports needed to fire the alert
+      threshold: 3
+      # Only reports from the last N minutes count toward the threshold.
+      # Set to 0 to count every report since the proxy started.
+      window-minutes: 15
+      # Discord role ID to ping. In Discord: User Settings > Advanced > enable
+      # Developer Mode, then right-click the role > Copy Role ID.
+      # Leave empty to post the alert without a ping.
+      role-id: ""
+      # Alert message sent with the role ping
+      message: "{role} **{target}** has been reported **{count} times** in the last {window} minutes — please check on them."
+      # Minimum seconds between alerts for the SAME target (prevents spam)
+      cooldown-seconds: 300
 
 # ============================================================
 #                       COOLDOWNS

@@ -1,5 +1,6 @@
 package com.sn.staffnotify.config;
 
+import com.sn.staffnotify.webhook.ReportAlertConfig;
 import com.sn.staffnotify.webhook.WebhookTemplate;
 import org.slf4j.Logger;
 import org.yaml.snakeyaml.Yaml;
@@ -18,7 +19,7 @@ import java.util.*;
 public final class ConfigManager {
 
     private static final String FILE_NAME = "config.yml";
-    private static final int CURRENT_CONFIG_VERSION = 4;
+    private static final int CURRENT_CONFIG_VERSION = 5;
 
     private final Logger logger;
     private final Path dataDir;
@@ -41,6 +42,7 @@ public final class ConfigManager {
     // Webhook templates (fully customizable)
     private volatile WebhookTemplate helpopWebhook;
     private volatile WebhookTemplate reportWebhook;
+    private volatile ReportAlertConfig reportAlert;
 
     // Cooldown settings (seconds)
     private volatile int cooldownHelpop;
@@ -120,6 +122,11 @@ public final class ConfigManager {
         if (webhooksObj instanceof Map<?, ?> webhooksMap) {
             this.helpopWebhook = parseWebhook(webhooksMap.get("helpop"), 0xFFA500);
             this.reportWebhook = parseWebhook(webhooksMap.get("report"), 0xFF4444);
+
+            Object reportObj = webhooksMap.get("report");
+            this.reportAlert = (reportObj instanceof Map<?, ?> reportMap)
+                    ? parseReportAlert(reportMap.get("alert"))
+                    : ReportAlertConfig.disabled();
         } else {
             applyWebhookDefaults();
         }
@@ -266,6 +273,23 @@ public final class ConfigManager {
         );
     }
 
+    /**
+     * Parses the {@code alert} section nested under the report webhook.
+     * Returns a disabled configuration if the section is missing.
+     */
+    private ReportAlertConfig parseReportAlert(Object alertObj) {
+        if (!(alertObj instanceof Map<?, ?> map)) {
+            return ReportAlertConfig.disabled();
+        }
+        boolean enabled = Boolean.TRUE.equals(map.get("enabled"));
+        int threshold = getIntOrDefault(map, "threshold", 3);
+        int windowMinutes = getIntOrDefault(map, "window-minutes", 15);
+        String roleId = getStringOrDefault(map, "role-id", "");
+        String message = getStringOrDefault(map, "message", "");
+        int cooldownSeconds = getIntOrDefault(map, "cooldown-seconds", 300);
+        return new ReportAlertConfig(enabled, threshold, windowMinutes, roleId, message, cooldownSeconds);
+    }
+
     private Set<String> parseStringSet(Object listObj) {
         if (!(listObj instanceof List<?> list)) return Set.of();
         Set<String> result = new HashSet<>();
@@ -316,6 +340,7 @@ public final class ConfigManager {
     private void applyWebhookDefaults() {
         this.helpopWebhook = emptyWebhook(0xFFA500);
         this.reportWebhook = emptyWebhook(0xFF4444);
+        this.reportAlert = ReportAlertConfig.disabled();
     }
 
     private void checkConfigVersion(Map<String, Object> config) throws IOException {
@@ -384,6 +409,7 @@ public final class ConfigManager {
 
     public WebhookTemplate getHelpopWebhook() { return helpopWebhook; }
     public WebhookTemplate getReportWebhook() { return reportWebhook; }
+    public ReportAlertConfig getReportAlert() { return reportAlert; }
 
     public int getCooldownHelpop() { return cooldownHelpop; }
     public int getCooldownReport() { return cooldownReport; }

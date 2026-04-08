@@ -31,6 +31,7 @@ public final class WebhookManager {
     private final Logger logger;
     private final ConfigManager config;
     private final HttpClient httpClient;
+    private final ReportAlertTracker alertTracker;
 
     public WebhookManager(Logger logger, ConfigManager config) {
         this.logger = logger;
@@ -38,6 +39,7 @@ public final class WebhookManager {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
+        this.alertTracker = new ReportAlertTracker();
     }
 
     /**
@@ -55,6 +57,7 @@ public final class WebhookManager {
 
     /**
      * Sends a Report notification to the configured Discord webhook.
+     * If the alert threshold is tripped, also sends a follow-up role ping.
      */
     public void sendReport(String reporter, UUID uuid, String server, String target, String reason) {
         WebhookTemplate template = config.getReportWebhook();
@@ -65,6 +68,58 @@ public final class WebhookManager {
         placeholders.put("reason", reason);
 
         dispatch(template, placeholders, "report");
+        checkReportAlert(template.url(), placeholders, target);
+    }
+
+    /**
+     * Records the report in the tracker and, if the configured threshold is
+     * reached, posts an extra message to the report webhook URL with a role ping.
+     */
+    private void checkReportAlert(String webhookUrl, Map<String, String> placeholders, String target) {
+        ReportAlertConfig alert = config.getReportAlert();
+        if (!alert.enabled() || alert.threshold() <= 0) return;
+
+        long windowMillis = alert.windowMinutes() > 0 ? alert.windowMinutes() * 60_000L : 0L;
+        int count = alertTracker.recordAndCount(target, windowMillis);
+        if (count < alert.threshold()) return;
+
+        long cooldownMillis = alert.cooldownSeconds() > 0 ? alert.cooldownSeconds() * 1000L : 0L;
+        if (!alertTracker.tryArmCooldown(target, cooldownMillis)) return;
+
+        sendReportAlert(webhookUrl, alert, placeholders, count);
+    }
+
+    /**
+     * Builds and dispatches the repeated-report alert payload with role ping.
+     */
+    private void sendReportAlert(String webhookUrl, ReportAlertConfig alert,
+                                 Map<String, String> basePlaceholders, int count) {
+        String roleId = alert.roleId() == null ? "" : alert.roleId().trim();
+        String roleMention = roleId.isEmpty() ? "" : "<@&" + roleId + ">";
+
+        Map<String, String> alertPlaceholders = new HashMap<>(basePlaceholders);
+        alertPlaceholders.put("count", Integer.toString(count));
+        alertPlaceholders.put("threshold", Integer.toString(alert.threshold()));
+        alertPlaceholders.put("window", Integer.toString(alert.windowMinutes()));
+        alertPlaceholders.put("role", roleMention);
+
+        String message = replace(alert.message(), alertPlaceholders);
+        if (message.isEmpty()) return;
+
+        StringBuilder json = new StringBuilder(128);
+        json.append("{\"content\":\"").append(escapeJson(message)).append('"');
+
+        // Only allow role mentions — prevents @everyone / user ping abuse via the message field.
+        if (!roleId.isEmpty()) {
+            json.append(",\"allowed_mentions\":{\"parse\":[\"roles\"],\"roles\":[\"")
+                    .append(escapeJson(roleId))
+                    .append("\"]}");
+        } else {
+            json.append(",\"allowed_mentions\":{\"parse\":[]}");
+        }
+        json.append('}');
+
+        sendWebhook(webhookUrl, json.toString(), "report-alert");
     }
 
     /**
@@ -323,10 +378,10 @@ public final class WebhookManager {
     }
 
     /**
-     * Closes the HTTP client resources.
+     * Closes resources and clears the in-memory alert tracker.
      */
     public void close() {
         // HttpClient doesn't require explicit close in Java 21
-        // but this method exists for lifecycle consistency
+        alertTracker.clear();
     }
 }
